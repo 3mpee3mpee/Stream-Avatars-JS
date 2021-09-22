@@ -15,6 +15,31 @@ function randomNumbers(...args) {
 	return (args[0] + args[1]) * args[2];
 }
 
+function wrapText(context, text, x, y, maxWidth, lineHeight) {
+	var words = text.split(" ");
+	var line = "";
+
+	for (var n = 0; n < words.length; n++) {
+		var testLine = line + words[n] + " ";
+		var metrics = context.measureText(testLine);
+		var testWidth = metrics.width;
+		if (testWidth > maxWidth && n > 0) {
+			context.fillStyle = "white";
+			context.fillRect(x - 20, y - 20, maxWidth, 50);
+			context.fillStyle = "black";
+			context.fillText(line, x, y);
+			line = words[n] + " ";
+			y += lineHeight;
+		} else {
+			line = testLine;
+		}
+	}
+	context.fillStyle = "white";
+	context.fillRect(x - 20, y - 20, maxWidth, 30);
+	context.fillStyle = "black";
+	context.fillText(line, x, y);
+}
+
 function fireworks(url) {
 	// source display
 	const widthDisplay = window.innerWidth;
@@ -93,16 +118,16 @@ class Message {
 		this.username = username;
 		this.message = message;
 		this.x = x;
-		this.y = y - 20;
+		this.y = y - 50;
 		this.display = true;
 	}
 
 	displayMessage() {
 		if (this.display) {
 			this.update();
-			ctx.font = "30px Arial";
+			ctx.font = "20px Arial";
 			ctx.fillStyle = "black";
-			ctx.fillText(this.message, this.x, this.y, 300, 150);
+			wrapText(ctx, this.message, this.x, this.y, 300, 25);
 			setTimeout(() => {
 				this.display = false;
 				messages = messages.filter(
@@ -236,9 +261,21 @@ class Player {
 
 //Listeting to Socket Events
 
-const users = [];
+let users = [];
 let messages = [];
 
+// For every single joined person new model will be created.
+//
+// socket.on("joined", (username) => {
+//     const user = users.find((x) => x.username === username);
+
+// 	if (!user) {
+// 		const player = new Player(username);
+// 		users.push(player);
+// 	}
+// });
+
+// Every new message will create a new model or display a message under the model.
 socket.on("message", (data) => {
 	const [username, message] = data;
 	const user = users.find((x) => x.username === username);
@@ -250,6 +287,7 @@ socket.on("message", (data) => {
 	}
 });
 
+// Changing model skin.
 socket.on("change", (data) => {
 	const [username, model] = data;
 
@@ -262,6 +300,11 @@ socket.on("change", (data) => {
 		player.changeModel(model);
 		users.push(player);
 	}
+});
+
+//User left the chat.
+socket.on("left", (username) => {
+	users = users.filter((x) => x.username !== username);
 });
 
 //Update Loop

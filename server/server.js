@@ -2,7 +2,7 @@ const path = require("path");
 const http = require("http");
 const express = require("express");
 require("dotenv").config();
-const twitchEmotions = require('./helpers/twitchEmotions');
+const twitchEmotions = require("./helpers/twitchEmotions");
 
 // Initialize
 const PORT = process.env.PORT || 3000;
@@ -12,13 +12,14 @@ const socket = require("./socket")(httpServer);
 
 //process
 process.on("message", async (event) => {
-	if (socket && event.joined) socket.emit("addUser", event.joined);
+	if (socket && event.joined) socket.emit("joined", event.joined);
+	if (socket && event.left) socket.emit("left", event.left);
 	if (socket && event.message) socket.emit("message", event.message);
 	if (socket && event.changeModel) socket.emit("change", event.changeModel);
-    if (socket && event.emotes) {
-        let urls = await twitchEmotions(event.emotes);
-        socket.emit('emotes', urls);
-    };
+	if (socket && event.emotes) {
+		let urls = await twitchEmotions(event.emotes);
+		socket.emit("emotes", urls);
+	}
 });
 
 //Statics

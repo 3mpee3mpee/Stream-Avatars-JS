@@ -16,13 +16,19 @@ bot.on("join", (channel, username, self) => {
 	childProcess.send({ joined: username });
 });
 
+bot.on("part", (channel, username, self) => {
+	childProcess.send({ left: username });
+});
+
 bot.on("message", (channel, userstate, message, self) => {
 	if (message == "!jiraya" || message == "!naruto") {
-		childProcess.send({ changeModel: [userstate.username, message.slice(1)] });
+		childProcess.send({
+			changeModel: [userstate.username, message.slice(1)],
+		});
 	}
-    if (userstate.emotes) {
-        childProcess.send({emotes: userstate.emotes});
-    }
+	if (userstate.emotes) {
+		childProcess.send({ emotes: userstate.emotes });
+	}
 	childProcess.send({ message: [userstate.username, message] });
 });
 
