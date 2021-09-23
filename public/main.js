@@ -15,31 +15,6 @@ function randomNumbers(...args) {
 	return (args[0] + args[1]) * args[2];
 }
 
-function wrapText(context, text, x, y, maxWidth, lineHeight) {
-	var words = text.split(" ");
-	var line = "";
-
-	for (var n = 0; n < words.length; n++) {
-		var testLine = line + words[n] + " ";
-		var metrics = context.measureText(testLine);
-		var testWidth = metrics.width;
-		if (testWidth > maxWidth && n > 0) {
-			context.fillStyle = "white";
-			context.fillRect(x - 20, y - 20, maxWidth, 50);
-			context.fillStyle = "black";
-			context.fillText(line, x, y);
-			line = words[n] + " ";
-			y += lineHeight;
-		} else {
-			line = testLine;
-		}
-	}
-	context.fillStyle = "white";
-	context.fillRect(x - 20, y - 20, maxWidth, 30);
-	context.fillStyle = "black";
-	context.fillText(line, x, y);
-}
-
 function fireworks(url) {
 	// source display
 	const widthDisplay = window.innerWidth;
@@ -116,9 +91,9 @@ let frames = 0;
 class Message {
 	constructor(username, message, x, y) {
 		this.username = username;
-		this.message = message;
-		this.x = x;
-		this.y = y - 50;
+		this.message = message.trim();
+		this.x = x - 50;
+		this.y = y - this.message.length * 0.8 - 10;
 		this.display = true;
 	}
 
@@ -127,9 +102,10 @@ class Message {
 			this.update();
 			ctx.font = "20px Arial";
 			ctx.fillStyle = "black";
-			wrapText(ctx, this.message, this.x, this.y, 300, 25);
+			this.wrapText(ctx, this.message, this.x, this.y, 300, 25);
 			setTimeout(() => {
 				this.display = false;
+				this.userStopTalking()
 				messages = messages.filter(
 					(mess) => mess.message !== this.message
 				);
@@ -139,11 +115,43 @@ class Message {
 
 	update() {
 		const user = users.find((x) => x.username == this.username);
-		const dx = this.x - user.x;
+		const dx = this.x - user.x + (this.message.length / 3);
+		user.saying = true;
 
 		if (Math.round(user.x) != Math.round(this.x)) {
 			this.x -= dx / 30;
 		}
+
+	}
+
+	userStopTalking () {
+		const user = users.find(x => x.username == this.username);
+		user.saying = false;
+	}
+
+	wrapText(context, text, x, y, maxWidth, lineHeight) {
+		var words = text.split(" ");
+		var line = "";
+	
+		for (var n = 0; n < words.length; n++) {
+			var testLine = line + words[n] + " ";
+			var metrics = context.measureText(testLine);
+			var testWidth = metrics.width;
+			if (testWidth > maxWidth && n > 0) {
+				context.fillStyle = "white";
+				context.fillRect(x - 20, y - 20, maxWidth, 50);
+				context.fillStyle = "black";
+				context.fillText(line, x, y);
+				line = words[n] + " ";
+				y += lineHeight;
+			} else {
+				line = testLine;
+			}
+		}
+		context.fillStyle = "white";
+		context.fillRect(x - 20, y - 20, context.measureText(text).width > maxWidth ? maxWidth : context.measureText(text).width + 30, 30);
+		context.fillStyle = "black";
+		context.fillText(line, x, y);
 	}
 }
 
@@ -153,15 +161,15 @@ class Player {
 		this.username = username;
 		this.message = "";
 		this.x = canvas.width;
-		this.y =
-			this.model == "naruto" ? canvas.height / 2 + 20 : canvas.height / 2;
+		this.y = canvas.height / 2;
+		this.model = "naruto";
 		this.radius = 50;
 		this.angle = 0;
 		this.frameX = 0;
 		this.frameY = 0;
 		this.frame = 0;
 		this.spriteWidth = 200;
-		this.spriteHeight = 150;
+		this.spriteHeight = 300;
 		this.walk = false;
 		this.random = {
 			x: canvas.width / 2,
@@ -177,21 +185,26 @@ class Player {
 		this.model = modelName;
 	}
 
-	say(mess) {
-		this.saying = true;
-		if (this.saying) {
-			this.message = mess;
-			const messageInstance = new Message(
-				this.username,
-				mess,
-				this.x,
-				this.y
-			);
-			messages.push(messageInstance);
-			delete messageInstance.instance;
-			this.message = "";
-			this.saying = false;
+	displayUsername() {
+		if(!this.saying) {
+			ctx.fillStyle = 'purple';
+			ctx.font = '10px Arial';
+			const usernameWidth = ctx.measureText(this.username).width;
+			ctx.fillText(this.username, this.x - (usernameWidth / this.spriteWidth * 10), this.y - 30, usernameWidth);
 		}
+	}
+
+	say(mess) {
+		this.message = mess;
+		const messageInstance = new Message(
+			this.username,
+			mess,
+			this.x,
+			this.y
+		);
+		messages.push(messageInstance);
+		delete messageInstance.instance;
+		this.message = "";
 	}
 
 	randomWalk() {
@@ -206,7 +219,7 @@ class Player {
 	}
 
 	animation() {
-		if (this.walk && this.state < 3 && frames % 30 == 0) {
+		if (this.walk && this.state < 3 && frames % 10 == 0) {
 			switch (this.state) {
 				case 0:
 					this.random.x < this.x
@@ -231,10 +244,11 @@ class Player {
 	}
 
 	update() {
+		this.displayUsername();
 		const dx = this.x - this.random.x;
 
 		if (Math.round(this.random.x) != Math.round(this.x)) {
-			this.x -= dx / 30;
+			this.x -= dx / 10;
 			this.walk = true;
 			this.animation();
 		} else {
@@ -283,6 +297,7 @@ socket.on("message", (data) => {
 		user.say(message);
 	} else {
 		const player = new Player(username);
+		player.say(message);
 		users.push(player);
 	}
 });
@@ -316,9 +331,10 @@ function animate() {
 	});
 	messages.forEach((mess) => {
 		mess.displayMessage();
+		mess.update();
 	});
 	frames++;
-	requestAnimationFrame(animate);
+	window.requestAnimationFrame(animate);
 }
 
-animate();
+window.requestAnimationFrame(animate);
